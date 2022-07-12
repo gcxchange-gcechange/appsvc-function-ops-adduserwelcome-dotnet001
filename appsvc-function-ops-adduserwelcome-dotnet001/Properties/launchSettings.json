@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "appsvc_function_ops_adduserwelcome_dotnet001": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7288",
+      "launchBrowser": false
+    }
+  }
+}
