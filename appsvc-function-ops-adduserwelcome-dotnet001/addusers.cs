@@ -40,30 +40,27 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
            .AddEnvironmentVariables()
            .Build();
 
+            //department group id of usersync
             var listgroupid = config["listgroupid"];
 
             string[] groupids = listgroupid.Split(',');
 
             foreach (var id in groupids)
             {
-                log.LogInformation("get group id");
                 var GetMembersList = getmember(graphAPIAuth, id, log).GetAwaiter().GetResult();
 
                 foreach (var member in GetMembersList)
                 {
                     log.LogInformation($"{member.DisplayName}-{member.CreatedDateTime}");
                     DateTime now = DateTime.Now;
-                    if(member.CreatedDateTime > now.AddHours(-24))
+                    if(member.CreatedDateTime > now.AddHours(-720))
                     {
-                        log.LogInformation("Yes");
                         var GetGroupMember = Usermember(graphAPIAuth, member.Id, log).GetAwaiter().GetResult();
-                        if (GetGroupMember == null)
+                        if (GetGroupMember.Count() <= 0)
                         {
                             var AddUsertoGroup = addUserstowelcomeGroup(graphAPIAuth, member.Id, log).GetAwaiter().GetResult();
                         }
-
                     }
-
                 }
             }
             return new OkObjectResult("OK");
@@ -72,13 +69,11 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
         public static async Task<List<User>> getmember(GraphServiceClient graphClient, string groupID, ILogger log)
         {
             List<User> users = new List<User>();
-            log.LogInformation("Get all members");
             try
             {
-                
-              var members = await graphClient.Groups[groupID].Members
+                var members = await graphClient.Groups[groupID].Members
                             .Request()
-                            .Select("createdDateTime, displayName")
+                            .Select("createdDateTime, displayName, id")
                             .Top(999)
                             .GetAsync();
 
@@ -103,17 +98,10 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
         public static async Task<IDirectoryObjectCheckMemberGroupsCollectionPage> Usermember(GraphServiceClient graphClient, string userID, ILogger log)
         {
             IDirectoryObjectCheckMemberGroupsCollectionPage memberOf = new DirectoryObjectCheckMemberGroupsCollectionPage();
-            log.LogInformation("Get all members");
             try
             {
-                var groupIds = new List<String>()
-                    {
-                        "fee2c45b-915a-4a64b130f4eb9e75525e",
-                        "4fe90ae065a-478b9400e0a0e1cbd540"
-                    };
-                
                 memberOf = await graphClient.Users[userID]
-                        .CheckMemberGroups(groupIds)
+                        .CheckMemberGroups(Globals.welcomeGroup)
                         .Request()
                         .PostAsync();
 
@@ -121,14 +109,13 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
             }
             catch (Exception ex)
             {
-                log.LogInformation(ex.Message);
+                log.LogInformation("Error check user "+ex.Message);
                 return memberOf;
             }
         }
 
         public static async Task<string> addUsers(GraphServiceClient graphClient, string userID, string groupid, ILogger log)
         {
-            log.LogInformation("Call teams");
             string response = "";
             try
             {
@@ -142,6 +129,7 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
                     .AddAsync(directoryObject);
 
                 response = $"User {userID} was add to {groupid}";
+                log.LogInformation(response);
             }
             catch (Exception ex)
             {
@@ -153,7 +141,6 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
 
         public static async Task<string> addUserstowelcomeGroup(GraphServiceClient graphClient, string userID, ILogger log)
         {
-            log.LogInformation("Call count");
             string response = "";
             foreach (var groupid in Globals.welcomeGroup)
             {
@@ -169,7 +156,6 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
                         .Header("ConsistencyLevel", "eventual")
                         .GetAsync();
 
-                    log.LogInformation(members.Count.ToString());
                     if(members.Count <= 24990)
                     {
                         var AddUsertoGroup = addUsers(graphClient, userID, groupid, log).GetAwaiter().GetResult();

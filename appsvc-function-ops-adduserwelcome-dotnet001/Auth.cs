@@ -22,48 +22,44 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
            .Build();
 
             log.LogInformation("C# HTTP trigger function processed a request.");
-           // var scopes = new string[] { "https://graph.microsoft.com/.default" };
-           // var keyVaultUrl = config["keyVaultUrl"];
-           // var keyname = "dgcx-dev-key-userssynch-"+rg_code;
-
-            //SecretClientOptions options = new SecretClientOptions()
-            //{
-            //    Retry =
-            //    {
-            //        Delay= TimeSpan.FromSeconds(2),
-            //        MaxDelay = TimeSpan.FromSeconds(16),
-            //        MaxRetries = 5,
-            //        Mode = RetryMode.Exponential
-            //     }
-            //};
-            //var client = new SecretClient(new Uri(keyVaultUrl), new DefaultAzureCredential(), options);
-
-            //KeyVaultSecret secret = client.GetSecret(keyname);
+            var keyVaultUrl = config["keyVaultUrl"];
+            var password = config["userpassword"];
+            var username = config["user-email"];
+            var tenantId = config["tenantid"];
+            var clientId = config["clientId-delegated"];
+            log.LogInformation("test1");
             var scopes = new[] { "User.Read" };
 
-            // Multi-tenant apps can use "common",
-            // single-tenant apps must use the tenant ID from the Azure portal
-            var tenantId = "28d8f6f0-3824-448a-9247-b88592acc8b7";
+            SecretClientOptions options = new SecretClientOptions()
+            {
+                Retry =
+                {
+                    Delay= TimeSpan.FromSeconds(2),
+                    MaxDelay = TimeSpan.FromSeconds(16),
+                    MaxRetries = 5,
+                    Mode = RetryMode.Exponential
+                 }
+            };
+            log.LogInformation("test3"+ password + keyVaultUrl);
+            var client = new SecretClient(new Uri(keyVaultUrl), new DefaultAzureCredential(), options);
 
-            // Value from app registration
-            var clientId = "2a66bf9d-612b-41ad-9d4c-9631ede96a5c";
+            KeyVaultSecret secret = client.GetSecret(password);
 
             // using Azure.Identity;
             var optionsAzIdentity = new TokenCredentialOptions
             {
                 AuthorityHost = AzureAuthorityHosts.AzurePublicCloud
             };
-
-            var userName = "serviceAccount-AddWelcome@devgcx.ca";
-            var password = "Boba7673";
-
+            log.LogInformation("test4");
             // https://docs.microsoft.com/dotnet/api/azure.identity.usernamepasswordcredential
             var userNamePasswordCredential = new UsernamePasswordCredential(
-                userName, password, tenantId, clientId, optionsAzIdentity);
+                username, secret.Value, tenantId, clientId, optionsAzIdentity);
+
+            log.LogInformation("test5");
 
             var graphClient = new GraphServiceClient(userNamePasswordCredential, scopes);
+            log.LogInformation("test2");
             return graphClient;
         }
-
     }
 }
