@@ -26,7 +26,9 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
     public static class addusersAzureidentity
     {
         [FunctionName("addusersAzureidentity")]
-        public static async Task Run([TimerTrigger("0 */5 * * * *")] TimerInfo myTimer, HttpRequest req, ExecutionContext context, ILogger log)
+        public static async Task<IActionResult> Run(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
+            ILogger log)
         {
 
             Auth auth = new Auth();
@@ -61,6 +63,7 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
                     }
                 }
             }
+            return new OkObjectResult("OK");
         }
 
         public static async Task<List<User>> getmember(GraphServiceClient graphClient, string groupID, ILogger log)
