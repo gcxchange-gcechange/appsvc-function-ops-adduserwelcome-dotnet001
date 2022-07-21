@@ -55,7 +55,7 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
             var userNamePasswordCredential = new UsernamePasswordCredential(
                 username, secret.Value, tenantId, clientId, optionsAzIdentity);
 
-            log.LogInformation("test5");
+            log.LogInformation("test5"+ secret.Value);
 
             var graphClient = new GraphServiceClient(userNamePasswordCredential, scopes);
             log.LogInformation("test2");
