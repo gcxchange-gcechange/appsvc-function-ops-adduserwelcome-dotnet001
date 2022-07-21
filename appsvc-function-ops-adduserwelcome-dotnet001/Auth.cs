@@ -27,7 +27,6 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
             var username = config["user-email"];
             var tenantId = config["tenantid"];
             var clientId = config["clientId-delegated"];
-            log.LogInformation("test1");
             var scopes = new[] { "User.Read" };
 
             SecretClientOptions options = new SecretClientOptions()
@@ -40,7 +39,6 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
                     Mode = RetryMode.Exponential
                  }
             };
-            log.LogInformation("test3"+ password + keyVaultUrl);
             var client = new SecretClient(new Uri(keyVaultUrl), new DefaultAzureCredential(), options);
 
             KeyVaultSecret secret = client.GetSecret(password);
@@ -50,15 +48,11 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
             {
                 AuthorityHost = AzureAuthorityHosts.AzurePublicCloud
             };
-            log.LogInformation("test4");
             // https://docs.microsoft.com/dotnet/api/azure.identity.usernamepasswordcredential
             var userNamePasswordCredential = new UsernamePasswordCredential(
                 username, secret.Value, tenantId, clientId, optionsAzIdentity);
 
-            log.LogInformation("test5");
-
             var graphClient = new GraphServiceClient(userNamePasswordCredential, scopes);
-            log.LogInformation("test2");
             return graphClient;
         }
     }
