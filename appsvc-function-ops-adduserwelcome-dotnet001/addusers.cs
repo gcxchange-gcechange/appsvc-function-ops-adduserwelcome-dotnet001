@@ -26,7 +26,7 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
     public static class addusersAzureidentity
     {
         [FunctionName("addusersAzureidentity")]
-        public static async Task Run([TimerTrigger("0 */5 * * * *")] TimerInfo myTimer, ExecutionContext context, ILogger log)
+        public static async Task Run([TimerTrigger("0 */15 * * * *")] TimerInfo myTimer, ExecutionContext context, ILogger log)
         {
 
             Auth auth = new Auth();
