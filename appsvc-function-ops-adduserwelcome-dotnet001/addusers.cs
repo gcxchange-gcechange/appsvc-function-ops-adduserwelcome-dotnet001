@@ -18,7 +18,7 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
         .AddEnvironmentVariables()
         .Build();
 
-        public static readonly string[] assignedGroup = config["assignedGroupId"].Split(',');
+        public static readonly string assignedGroup = config["assignedGroupId"];
         public static readonly string[] welcomeGroup = config["listWelcomeGroup"].Split(',');
     }
     public static class addusersAzureidentity
@@ -46,7 +46,7 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
                     log.LogInformation($"{member.Id}-{member.DisplayName}-{member.CreatedDateTime}");
 
                     // add user to Assigned Group if not already a member
-                    var GetAssignedGroupMember = Usermember(graphAPIAuth, Globals.assignedGroup, member.Id, log).GetAwaiter().GetResult();
+                    var GetAssignedGroupMember = Usermember(graphAPIAuth, new string[] { Globals.assignedGroup }, member.Id, log).GetAwaiter().GetResult();
                     if (GetAssignedGroupMember.Count() <= 0)
                     {
                         addUsersToAssignedGroup(graphAPIAuth, member.Id, log).GetAwaiter().GetResult();
@@ -175,23 +175,21 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
         {
             string response = "";
 
-            foreach (var groupid in Globals.assignedGroup)
-            {
-                try
-                {
-                    var group = await graphClient.Groups[groupid].Request().GetAsync();
-                    var members = await graphClient.Groups[groupid].Members.Request().Header("ConsistencyLevel", "eventual").GetAsync();
+            var groupid = Globals.assignedGroup;
 
-                    var AddUsertoGroup = addUsers(graphClient, userID, groupid, log).GetAwaiter().GetResult();
-                    response = "user added to assigned group";
-                    break;
-                }
-                catch (Exception e)
-                {
-                    log.LogInformation($"Message: {e.Message}");
-                    if (e.InnerException is not null)
-                        log.LogInformation($"InnerException: {e.InnerException.Message}");
-                }
+            try
+            {
+                var group = await graphClient.Groups[groupid].Request().GetAsync();
+                var members = await graphClient.Groups[groupid].Members.Request().Header("ConsistencyLevel", "eventual").GetAsync();
+
+                var AddUsertoGroup = addUsers(graphClient, userID, groupid, log).GetAwaiter().GetResult();
+                response = "user added to assigned group";
+            }
+            catch (Exception e)
+            {
+                log.LogInformation($"Message: {e.Message}");
+                if (e.InnerException is not null)
+                    log.LogInformation($"InnerException: {e.InnerException.Message}");
             }
 
             return response;
