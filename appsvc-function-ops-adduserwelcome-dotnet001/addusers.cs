@@ -6,6 +6,7 @@ using Microsoft.Graph;
 using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
 using System.Linq;
+using System.Diagnostics.Metrics;
 
 namespace appsvc_function_ops_adduserwelcome_dotnet001
 {
@@ -17,8 +18,8 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
         .AddEnvironmentVariables()
         .Build();
 
+        public static readonly string[] assignedGroup = config["assignedGroupId"].Split(',');
         public static readonly string[] welcomeGroup = config["listWelcomeGroup"].Split(',');
-
     }
     public static class addusersAzureidentity
     {
@@ -27,7 +28,7 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
         {
             IConfiguration config = new ConfigurationBuilder().AddJsonFile("appsettings.json", optional: true, reloadOnChange: true).AddEnvironmentVariables().Build();
 
-            //department group id of usersync
+            // department group id of usersync
             var listgroupid = config["listgroupid"];
             string[] groupids = listgroupid.Split(',');
 
@@ -36,18 +37,29 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
 
             foreach (var id in groupids)
             {
+                log.LogInformation($"id: {id}");
+
                 var GetMembersList = getmember(graphAPIAuth, id, log).GetAwaiter().GetResult();
 
                 foreach (var member in GetMembersList)
                 {
-                    log.LogInformation($"{member.DisplayName}-{member.CreatedDateTime}");
+                    log.LogInformation($"{member.Id}-{member.DisplayName}-{member.CreatedDateTime}");
+
+                    // add user to Assigned Group if not already a member
+                    var GetAssignedGroupMember = Usermember(graphAPIAuth, Globals.assignedGroup, member.Id, log).GetAwaiter().GetResult();
+                    if (GetAssignedGroupMember.Count() <= 0)
+                    {
+                        addUsersToAssignedGroup(graphAPIAuth, member.Id, log).GetAwaiter().GetResult();
+                    }
+
+                    // add user to Welcome Group if not already a member and creation date less than 14 days
                     DateTime now = DateTime.Now;
                     if (member.CreatedDateTime > now.AddHours(-720))
                     {
-                        var GetGroupMember = Usermember(graphAPIAuth, member.Id, log).GetAwaiter().GetResult();
-                        if (GetGroupMember.Count() <= 0)
+                        var GetWelcomeGroupMember = Usermember(graphAPIAuth, Globals.welcomeGroup, member.Id, log).GetAwaiter().GetResult();
+                        if (GetWelcomeGroupMember.Count() <= 0)
                         {
-                            var AddUsertoGroup = addUserstowelcomeGroup(graphAPIAuth, member.Id, log).GetAwaiter().GetResult();
+                            addUserstowelcomeGroup(graphAPIAuth, member.Id, log).GetAwaiter().GetResult();
                         }
                     }
                 }
@@ -83,13 +95,13 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
             }
         }
 
-        public static async Task<IDirectoryObjectCheckMemberGroupsCollectionPage> Usermember(GraphServiceClient graphClient, string userID, ILogger log)
+        public static async Task<IDirectoryObjectCheckMemberGroupsCollectionPage> Usermember(GraphServiceClient graphClient, string[] groupID, string userID, ILogger log)
         {
             IDirectoryObjectCheckMemberGroupsCollectionPage memberOf = new DirectoryObjectCheckMemberGroupsCollectionPage();
             try
             {
                 memberOf = await graphClient.Users[userID]
-                        .CheckMemberGroups(Globals.welcomeGroup)
+                        .CheckMemberGroups(groupID)
                         .Request()
                         .PostAsync();
 
@@ -145,7 +157,7 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
                     if(members.Count <= 24990)
                     {
                         var AddUsertoGroup = addUsers(graphClient, userID, groupid, log).GetAwaiter().GetResult();
-                        response = "user add";
+                        response = "user added to welcome group";
                         break;
                     }
                 }
@@ -156,6 +168,32 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
                         log.LogInformation($"InnerException: {e.InnerException.Message}");
                 }
             }
+            return response;
+        }
+
+        public static async Task<string> addUsersToAssignedGroup(GraphServiceClient graphClient, string userID, ILogger log)
+        {
+            string response = "";
+
+            foreach (var groupid in Globals.assignedGroup)
+            {
+                try
+                {
+                    var group = await graphClient.Groups[groupid].Request().GetAsync();
+                    var members = await graphClient.Groups[groupid].Members.Request().Header("ConsistencyLevel", "eventual").GetAsync();
+
+                    var AddUsertoGroup = addUsers(graphClient, userID, groupid, log).GetAwaiter().GetResult();
+                    response = "user added to assigned group";
+                    break;
+                }
+                catch (Exception e)
+                {
+                    log.LogInformation($"Message: {e.Message}");
+                    if (e.InnerException is not null)
+                        log.LogInformation($"InnerException: {e.InnerException.Message}");
+                }
+            }
+
             return response;
         }
     }
