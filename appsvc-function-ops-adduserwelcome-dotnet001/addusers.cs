@@ -6,7 +6,6 @@ using Microsoft.Graph;
 using System.Collections.Generic;
 using Microsoft.Extensions.Configuration;
 using System.Linq;
-using System.Diagnostics.Metrics;
 
 namespace appsvc_function_ops_adduserwelcome_dotnet001
 {
@@ -151,7 +150,6 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
                         new QueryOption("$count", "true")
                     };
 
-                    var group = await graphClient.Groups[groupid].Request().GetAsync();
                     var members = await graphClient.Groups[groupid].Members.Request(queryOptions).Header("ConsistencyLevel", "eventual").GetAsync();
 
                     if(members.Count <= 24990)
@@ -179,9 +177,7 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
 
             try
             {
-                var group = await graphClient.Groups[groupid].Request().GetAsync();
                 var members = await graphClient.Groups[groupid].Members.Request().Header("ConsistencyLevel", "eventual").GetAsync();
-
                 var AddUsertoGroup = addUsers(graphClient, userID, groupid, log).GetAwaiter().GetResult();
                 response = "user added to assigned group";
             }
