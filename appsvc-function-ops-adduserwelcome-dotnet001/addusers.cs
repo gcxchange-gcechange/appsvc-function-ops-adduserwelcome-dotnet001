@@ -1,9 +1,6 @@
 using System;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using System.Collections.Generic;
@@ -28,20 +25,14 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
         [FunctionName("addusersAzureidentity")]
         public static async Task Run([TimerTrigger("0 */15 * * * *")] TimerInfo myTimer, ExecutionContext context, ILogger log)
         {
-
-            Auth auth = new Auth();
-            var graphAPIAuth = auth.graphAuth(log);
-
-            IConfiguration config = new ConfigurationBuilder()
-
-           .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
-           .AddEnvironmentVariables()
-           .Build();
+            IConfiguration config = new ConfigurationBuilder().AddJsonFile("appsettings.json", optional: true, reloadOnChange: true).AddEnvironmentVariables().Build();
 
             //department group id of usersync
             var listgroupid = config["listgroupid"];
-
             string[] groupids = listgroupid.Split(',');
+
+            ROPCConfidentialTokenCredential auth = new ROPCConfidentialTokenCredential(log);
+            var graphAPIAuth = new GraphServiceClient(auth);
 
             foreach (var id in groupids)
             {
@@ -51,7 +42,7 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
                 {
                     log.LogInformation($"{member.DisplayName}-{member.CreatedDateTime}");
                     DateTime now = DateTime.Now;
-                    if(member.CreatedDateTime > now.AddHours(-720))
+                    if (member.CreatedDateTime > now.AddHours(-720))
                     {
                         var GetGroupMember = Usermember(graphAPIAuth, member.Id, log).GetAwaiter().GetResult();
                         if (GetGroupMember.Count() <= 0)
@@ -148,10 +139,8 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
                         new QueryOption("$count", "true")
                     };
 
-                    var members = await graphClient.Groups[groupid].Members
-                        .Request(queryOptions)
-                        .Header("ConsistencyLevel", "eventual")
-                        .GetAsync();
+                    var group = await graphClient.Groups[groupid].Request().GetAsync();
+                    var members = await graphClient.Groups[groupid].Members.Request(queryOptions).Header("ConsistencyLevel", "eventual").GetAsync();
 
                     if(members.Count <= 24990)
                     {
@@ -160,10 +149,11 @@ namespace appsvc_function_ops_adduserwelcome_dotnet001
                         break;
                     }
                 }
-                catch (Exception ex)
+                catch (Exception e)
                 {
-                    log.LogInformation(ex.Message);
-                    response = "Error";
+                    log.LogInformation($"Message: {e.Message}");
+                    if (e.InnerException is not null)
+                        log.LogInformation($"InnerException: {e.InnerException.Message}");
                 }
             }
             return response;
